@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+	<head>
+		<title>now-avatar demo</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1, user-scalable=yes">
+		<script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+		<link rel="import" href="../../iron-demo-helpers/demo-pages-shared-styles.html">
+		<link rel="import" href="../../iron-demo-helpers/demo-snippet.html">
+		<link rel="import" href="../../iron-flex-layout/iron-flex-layout-classes.html">
+		<link rel="import" href="../now-avatar.html">
+		<style is="custom-style" include="demo-pages-shared-styles iron-flex iron-flex-alignment">
+			/* Set a custom size */
+			.sizedNowAvatar {
+				--now-avatar-height-width: 60px;
+				--now-avatar: {
+					font-size: 24px;
+				};
+			}
+			/* Provide some custom styling when the avatar is hovered */
+			.styledNowAvatar {
+				--now-avatar-hover: {
+					border-radius: 50%;
+					border: 1px solid var(--default-primary-color);
+					box-shadow: var(--default-primary-color) 0 0 15px 5px;
+					transition: all 500ms ease;
+					height: 50px;
+					width: 50px;
+					font-size: 20px;
+				};
+			}
+			/* Just some spacing between multiple avatars */
+			.multiAvatars now-avatar {
+				margin-right: 10px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="introText">
+			<p>Some things to notice:</p>
+			<ul>
+				<li>Most of the names are 'CN=Keith Strickland/O=REDPILL'. Notice they all have the same background color</li>
+				<li>Photos, Letters and Icons are all properly aligned</li>
+				<li>Several custom styles are defined, makes avatar very configurable</li>
+				<li>Ability to define multiple avatars on a single line and each one is it's own instance with no knowledge of other avatars</li>
+				<li>Component is smart enough to know that only a name was defined or if the person wasn't found in the domino directory</li>
+			</ul>
+		</div>
+		<div class="vertical-section-container centered">
+			<h3>Photo attached to Person Document</h3>
+			<demo-snippet>
+				<template>
+					<now-avatar
+						dds-host-name="http:\/\/10.211.55.9"
+						dds-view-url="http://10.211.55.9/names.nsf/api/data/collections/unid/912366901F00A457852561C20069B844"
+						name="CN=Keith Strickland/O=REDPILL"
+						photo-field="UserPhoto">
+					</now-avatar>
+				</template>
+			</demo-snippet>
+		</div>
+
+		<div class="vertical-section-container centered">
+			<h3>Name Provided with DDS info (no photoField)</h3>
+			<demo-snippet>
+				<p>The first avatar has a custom size set (See demo/index.html style block)</p>
+				<p>The second avatar has all the same info as the first, except the person isn't found in the domino directory</p>
+				<template>
+					<div class="layout horizontal multiAvatars">
+						<now-avatar
+							id="nameOnlyNoDds"
+							class="sizedNowAvatar self-center"
+							name="CN=Keith Strickland/O=REDPILL"
+							dds-host-name="http:\/\/10.211.55.9"
+							dds-view-url="http://10.211.55.9/names.nsf/api/data/collections/unid/912366901F00A457852561C20069B844">
+						</now-avatar>
+						<now-avatar
+							id="noNameOnlyNoDds"
+							class="self-center"
+							name="CN=No Name/O=REDPILL"
+							dds-host-name="http:\/\/10.211.55.9"
+							dds-view-url="http://10.211.55.9/names.nsf/api/data/collections/unid/912366901F00A457852561C20069B844">
+						</now-avatar>
+					</div>
+				</template>
+			</demo-snippet>
+		</div>
+
+		<div class="vertical-section-container centered">
+			<h3>Name only Provided, no DDS Info</h3>
+			<demo-snippet>
+				<p>This avatar has custom styles when hovered (See demo/index.html style block)</p>
+				<template>
+					<div id="styledContainer">
+						<now-avatar
+							class="styledNowAvatar"
+							name="CN=Keith Strickland/O=REDPILL">
+						</now-avatar>
+					</div>
+				</template>
+			</demo-snippet>
+		</div>
+
+		<div class="vertical-section-container centered">
+			<h3>URL (Only) Provided</h3>
+			<demo-snippet>
+				<template>
+					<now-avatar
+						photo-url="http://www.gravatar.com/avatar/2b14efcb21ba7256e13a981392832c84?d=404">
+					</now-avatar>
+				</template>
+			</demo-snippet>
+		</div>
+
+		<div class="vertical-section-container centered">
+			<h3>Multiple of Various Type</h3>
+			<demo-snippet>
+				<p>Here multiple avatars are defined with a custom style on the first one</p>
+				<template>
+					<div class="layout horizontal multiAvatars">
+						<now-avatar
+							class="self-center styledNowAvatar"
+							photo-url="http://www.gravatar.com/avatar/2b14efcb21ba7256e13a981392832c84?d=404">
+						</now-avatar>
+						<now-avatar
+							class="self-center"
+							name="CN=Keith Strickland/O=REDPILL">
+						</now-avatar>
+						<now-avatar
+							class="self-center"
+							name="CN=No Name/O=REDPILL"
+							dds-host-name="http:\/\/10.211.55.9"
+							dds-view-url="http://10.211.55.9/names.nsf/api/data/collections/unid/912366901F00A457852561C20069B844">
+						</now-avatar>
+						<now-avatar
+							class="self-center"
+							dds-host-name="http:\/\/10.211.55.9"
+							dds-view-url="http://10.211.55.9/names.nsf/api/data/collections/unid/912366901F00A457852561C20069B844"
+							name="CN=Peter Presnell/O=REDPILL"
+							photo-field="UserPhoto">
+						</now-avatar>
+					</div>
+				</template>
+			</demo-snippet>
+		</div>
+
+		<div class="vertical-section-container centered">
+			<h3>Blank now-avatar Demo</h3>
+			<demo-snippet>
+				<template>
+					<now-avatar></now-avatar>
+				</template>
+			</demo-snippet>
+		</div>
+
+		<div class="vertical-section-container centered">
+			<h3>Click Url Enabled</h3>
+			<demo-snippet>
+				<template>
+					<now-avatar
+						click-url="http://redpillnow.com">
+					</now-avatar>
+				</template>
+			</demo-snippet>
+		</div>
+
+		<div class="vertical-section-container centered">
+			<h3>Click Listener (see javascript console for output)</h3>
+			<demo-snippet>
+				<template>
+					<now-avatar
+						id="clickAvatar">
+					</now-avatar>
+					<script type="text/javascript">
+document.querySelector('#clickAvatar').addEventListener('now-avatar-tapped', function(evt) {
+	evt.stopPropagation();
+	console.log('clickAvatar clicked!', arguments);
+});
+					</script>
+				</template>
+			</demo-snippet>
+		</div>
+
+	</body>
+</html>

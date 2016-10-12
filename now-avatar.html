@@ -1,0 +1,450 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<link rel="import" href="../iron-ajax/iron-ajax.html">
+<link rel="import" href="../iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../iron-icons/social-icons.html">
+<link rel="import" href="../iron-image/iron-image.html">
+
+<link rel="import" href="tinycolor.html">
+
+<!--
+`now-avatar`
+is an avatar component that accepts several different parameters in order to figure out the photo
+to show. This component is meant to be used on a Domino server with DDS enabled for the domino directory
+for views and documents and DDS enabled for the ($Users) view.
+
+### Dependencies
+
+This element depends on [tinycolor](https://bgrins.github.io/TinyColor/) which is a small library for working with colors
+
+### Styling
+
+The following custom properties are available for styling
+
+Custom property | Description | Default
+----------------|-------------|----------
+`--now-avatar-height-width` | The value for both the height and width | `40px`
+`--now-avatar-border-color` | The border color of the avatar | `#AFAFAF`
+`--now-avatar-border-size` | The size of the border | `1px`
+`--now-avatar` | A mixin to to provide your own styling |
+`--now-avatar-hover` | A mixin to provide your own hover styling |
+
+@demo demo/index.html
+-->
+
+<dom-module id="now-avatar">
+	<template>
+		<style is="custom-style" include="iron-flex iron-flex-alignment">
+			:host {
+				display: inline-block;
+				position: relative;
+				width: var(--now-avatar-height-width, 40px);
+				height: var(--now-avatar-height-width, 40px);
+				border: var(--now-avatar-border-size, 1px) solid var(--now-avatar-border-color, #afafaf);
+				border-radius: 50%;
+				@apply(--now-avatar);
+			}
+			:host:hover {
+				cursor: pointer;
+				@apply(--now-avatar-hover);
+			}
+			.avatarContainer {
+				height: 100%;
+				width: 100%;
+			}
+			.avatarImageContainer {
+				height: inherit;
+				width: inherit;
+			}
+			.avatarImage {
+				border-radius: 50%;
+				height: inherit;
+				width: inherit;
+				line-height: var(--now-avatar-height-width, 40px);
+			}
+			.avatarIcon {
+				display: inline;
+				line-height: var(--now-avatar-height-width, 40px);
+			}
+			.avatarLetterContainer {
+				width: inherit;
+				text-align: center;
+			}
+			.avatarLetter {
+				line-height: var(--now-avatar-height-width, 40px);
+			}
+		</style>
+		<!-- Lookup the user name in the ($Users) view of the domino directory -->
+		<iron-ajax
+			id="viewPeopleAjax"
+			url="{{ddsViewUrl}}"
+			handle-as="json"
+			last-response="{{_viewPerson}}"
+			last-error="{{_fetchViewPersonError}}"
+			verbose>
+		</iron-ajax>
+		<!-- Fetch the user once they are found in the ($Users) view -->
+		<iron-ajax
+			id="personAjax"
+			url="{{ddsPersonUrl}}"
+			handle-as="json"
+			on-response="_onPersonChange"
+			last-error="{{_fetchPersonError}}"
+			verbose>
+		</iron-ajax>
+		<div id="avatarContainer" class="avatarContainer layout horizontal">
+			<!-- The letter -->
+			<span
+				class="self-center avatarLetterContainer"
+				hidden$="{{_hideLetter}}">
+				<span id="avatarLetter" class="avatarLetter center">{{avatarLetter}}</span>
+			</span>
+			<!-- The icon -->
+			<span
+				class="self-center avatarIconContainer"
+				hidden$="{{_hideIcon}}">
+				<iron-icon id="avatarIcon" class="avatarIcon" icon="social:person"></iron-icon>
+			</span>
+			<!-- The image -->
+			<span
+				class="self-center avatarImageContainer"
+				hidden$="{{_hideImage}}">
+				<iron-image
+					sizing="cover"
+					src="{{_photoUrl}}"
+					hidden$="{{_hideImage}}"
+					class="avatarImage fit"
+					error="{{_fetchImageError}}"
+					fade>
+				</iron-image>
+			</span>
+		</div>
+	</template>
+	<script>
+Polymer({
+	is: 'now-avatar',
+	properties: {
+		/**
+		 * The person's canonical name. Not needed if you provide a photoUrl
+		 * @type {String}
+		 */
+		name: {
+			type: String,
+			observer: '_onNameChange'
+		},
+		/**
+		 * The person document retrieved from the domino directory
+		 * @type {Object}
+		 */
+		person: {
+			type: Object
+		},
+		/**
+		 * Person retrieved from the view query
+		 * @type {Array}
+		 */
+		_viewPerson: {
+			type: Array,
+			observer: '_onViewPersonChange'
+		},
+		/**
+		 * The DDS URL to the '($Users)' view in the domino directory formatted like:
+		 * 'http://domino.server/names.nsf/api/data/collections/unid/<ViewUNID>'
+		 * NOTE: With this one we need to include the protocol and host name
+		 * @type {String}
+		 */
+		ddsViewUrl: {
+			type: String,
+			observer: '_onDdsViewUrlChange'
+		},
+		/**
+		 * The DDS Url for documents in the database. Should be formatted like:
+		 * '/names.nsf/api/data/documents/unid/<PersonDocUNID>'
+		 * NOTE: DO NOT include the protocol and host name
+		 * @type {String}
+		 */
+		ddsPersonUrl: String,
+		/**
+		 * The url to navigate to when the avatar is clicked. Will open a new tab
+		 * @type {String}
+		 */
+		clickUrl: String,
+		/**
+		 * The protocol and host name to the DDS Url formatted like:
+		 * 'http://domino.server.name'
+		 * @type {String}
+		 */
+		ddsHostName: String,
+		/**
+		 * The name of the field in the Domino Directory person document where user photos are uploaded
+		 * @type {String}
+		 */
+		photoField: String,
+		/**
+		 * The name of the field in the Domino Directory person document where a photo url is stored
+		 * @type {String}
+		 */
+		photoUrlField: String,
+		/**
+		 * A url where a photo can be used. If you use this, you don't need to specify a name or DDS Urls
+		 * @type {String}
+		 */
+		photoUrl: {
+			type: String,
+			observer: '_onPhotoUrlChange'
+		},
+		/**
+		 * This is the property that iron-image will use to fetch the image
+		 * @type {String}
+		 */
+		_photoUrl: String,
+		/**
+		 * The First letter of the user's common name
+		 * @type {String}
+		 */
+		avatarLetter: String,
+		/**
+		 * True if the letter should be hidden
+		 * @type {Boolean}
+		 */
+		_hideLetter: {
+			type: Boolean,
+			value: true
+		},
+		/**
+		 * True if the icon should be hidden
+		 * @type {Boolean}
+		 */
+		_hideIcon: {
+			type: Boolean,
+			value: false
+		},
+		/**
+		 * True if the image should be hidden
+		 * @type {Boolean}
+		 */
+		_hideImage: {
+			type: Boolean,
+			value: true
+		},
+		/**
+		 * Object when an error occurs fetching a person
+		 * @type {Object}
+		 */
+		_fetchPersonError: {
+			type: Object,
+			observer: '_onFetchPersonError'
+		},
+		/**
+		 * Object when an error occurs fetching the view entries
+		 * @type {Object}
+		 */
+		_fetchViewPersonError: {
+			type: Object,
+			observer: '_onFetchViewPersonError'
+		},
+		/**
+		 * Object when an error occurs fetching an image
+		 * @type {Object}
+		 */
+		_fetchImageError: {
+			type: Object,
+			observer: '_onFetchImageError'
+		}
+	},
+	listeners: {
+		'tap': '_onTap'
+	},
+	/**
+	 * Produce an event when an error occurs fetching the image
+	 * @param  {Object} newVal The error
+	 * @param  {Object} oldVal The old error
+	 * @event now-avatar-image-error
+	 */
+	_onFetchImageError: function(newVal, oldVal) {
+		this.fire('now-avatar-image-error', newVal);
+	},
+	/**
+	 * Produce an event when an error occurs fetching the a person from the view
+	 * @param  {Object} newVal The error
+	 * @param  {Object} oldVal The old error
+	 * @event now-avatar-view-person-error
+	 */
+	_onFetchViewPersonError: function(newVal, oldVal) {
+		this.fire('now-avatar-view-person-error', newVal);
+	},
+	/**
+	 * Produce an event when an error occurs fetching a person document
+	 * @param  {Object} newVal The error
+	 * @param  {Object} oldVal The old error
+	 * @event now-avatar-person-error
+	 */
+	_onFetchPersonError: function(newVal, oldVal) {
+		this.fire('now-avatar-person-error', newVal);
+	},
+	/**
+	 * Sets which items are hidden and shown
+	 * @param {Boolean} hideIcon   True to hide the icon
+	 * @param {Boolean} hideLetter True to hide the letter
+	 * @param {Boolean} hideImage  True to hide the image
+	 */
+	_setHiddenContent: function(hideIcon, hideLetter, hideImage) {
+		this._hideIcon = hideIcon;
+		this._hideLetter = hideLetter;
+		this._hideImage = hideImage;
+		this._setStyles();
+	},
+	_onNameChange: function(newVal) {
+		this.avatarLetter = this.name ? this.name.substring(4, 3).toUpperCase() : null;
+		if (newVal) {
+			this._setHiddenContent(true, false, true);
+		}else {
+			this._setHiddenContent(false, true, true);
+		}
+	},
+	/**
+	 * Fires when the ddsViewUrl changes
+	 * @param  {String} newVal The new name
+	 * @param  {String} oldVal The old name
+	 */
+	_onDdsViewUrlChange: function(newVal) {
+		if (this.name && this.ddsViewUrl && this.ddsViewUrl !== '') {
+			this._setHiddenContent(true, false, true);
+			var ajax = this.$.viewPeopleAjax;
+			ajax.params = {
+				sortcolumn: 'FullName',
+				keys: this.name
+			};
+			ajax.generateRequest();
+		}else if (this.name && !this.ddsViewUrl) {
+			this._setHiddenContent(true, false, true);
+		}
+	},
+	/**
+	 * Fired when the person changes
+	 * @param  {Object} newVal The new person
+	 * @param  {Object} oldVal The old person
+	 */
+	_onPersonChange: function(evt, detail) {
+		//console.log(this.is, '_onPersonChange', arguments);
+		var person = detail.response;
+		this.person = person;
+		if (person) {
+			if (this.photoUrl) {
+				this._photoUrl = this.photoUrl;
+				this._setHiddenContent(true, true, false);
+			}else if (this.photoField) {
+				var mime = person[this.photoField];
+				if (person[this.photoField]) {
+					var content = person[this.photoField].content;
+					for (var key in content) {
+						var contentType = content[key].contentType;
+						if (contentType.indexOf('image') > -1) {
+							var contentTypeArr = contentType.split('"');
+							var fileName = contentTypeArr[1];
+							this._photoUrl = this.ddsHostName + '/names.nsf/0/' + person['@unid'] + '/$File/' + fileName;
+							this._setHiddenContent(true, true, false);
+							break;
+						}
+					}
+				}
+			}else {
+				this._setHiddenContent(true, false, true);
+			}
+		}else {
+			this._setHiddenContent(false, true, true);
+		}
+		if (this._hideIcon && !this._hideLetter && this._hideImage && this.name) {
+			this._setHiddenContent(true, false, true);
+		}
+	},
+	/**
+	 * Sets the background color, text color and line height
+	 * @param {String} name The name property
+	 */
+	_setStyles: function() {
+		if (this.name) {
+			var bgColor = this.getBackgroundColor();
+			var contrastColor = this.getContrastingColor(bgColor);
+			this.style.background = bgColor;
+			this.style.color = contrastColor;
+		}
+	},
+	/**
+	 * Fires when the viewPerson property changes. Fetches the person
+	 * @param  {Array} newVal The new array from the query of the view
+	 * @param  {Array} oldVal The old array
+	 */
+	_onViewPersonChange: function(newVal, oldVal) {
+		//console.log(this.is, '_onViewPersonChange', arguments);
+		if (newVal && newVal.length > 0) {
+			var personEntry = newVal[0];
+			this.ddsPersonUrl = this.ddsHostName + personEntry['@link'].href;
+			var ajax = this.$.personAjax;
+			ajax.generateRequest();
+		}else {
+			this._setHiddenContent(false, true, true);
+		}
+	},
+	/**
+	 * Fired when the avatar is tapped. Provides a detail object with
+	 * person, this element and name
+	 * @param  {Event} evt The event object
+	 * @event now-avatar-tapped
+	 */
+	_onTap: function(evt) {
+		//console.log(this.is, '_onTap', arguments);
+		if (this.clickUrl) {
+			window.open(this.clickUrl, '_blank');
+		}
+		var detailObj = {
+			person: this.person,
+			elem: this,
+			name: this.name
+		};
+		this.fire('now-avatar-tapped', detailObj);
+	},
+	/**
+	 * Get an avatar background color based on the passed in canonical name
+	 * @param  {String} name The name to use for the color
+	 * @return {String}      Hex color
+	 */
+	getBackgroundColor: function() {
+		var hash = 0;
+		if (this.name) {
+			var name = this.name;
+			for (var i = 0; i < name.length; i++) {
+				hash = name.charCodeAt(i) + ((hash << 5) - hash);
+			}
+		}
+		var colour = '#';
+		for (var j = 0; j < 3; j++) {
+			var value = (hash >> (j * 8)) & 0xFF;
+			var valueStr = value.toString(16);
+			var hexColor = ('00' + valueStr).substr(-2);
+			colour += hexColor;
+		}
+		return colour;
+	},
+	/**
+	 * Get a contrasting color that will show up on the avatar
+	 * @param  {String} colour The color to find the contrasint color from
+	 * @return {String}        css 'color' property value
+	 */
+	getContrastingColor: function(colour) {
+		return tinycolor(colour).isDark() ? 'white' : 'black';
+	},
+	/**
+	 * Fired when the photoUrl changes
+	 * @param  {String} newVal The photo url
+	 * @param  {String} oldVal The old photo url
+	 */
+	_onPhotoUrlChange: function(newVal, oldVal) {
+		if (newVal) {
+			this._photoUrl = newVal;
+			this._setHiddenContent(true,true,false);
+		}
+	}
+});
+	</script>
+</dom-module>
